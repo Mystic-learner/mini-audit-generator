@@ -1,0 +1,40 @@
+[
+  {
+    "id": "dae5b92e-8e14-4ac2-b9c9-62e46c1562e3",
+    "timestamp": "2025-12-01T13:52:45.847Z",
+    "content": "HELLO ",
+    "oldLength": 11,
+    "newLength": 6,
+    "addedWords": [],
+    "removedWords": [
+      "WORLD"
+    ]
+  },
+  {
+    "id": "2931d4dd-faa3-44e6-88c1-643ad3349adf",
+    "timestamp": "2025-12-01T13:50:38.307Z",
+    "content": "HELLO WORLD",
+    "oldLength": 11,
+    "newLength": 11,
+    "addedWords": [
+      "HELLO",
+      "WORLD"
+    ],
+    "removedWords": [
+      "hello",
+      "world"
+    ]
+  },
+  {
+    "id": "1aae2f66-1d3c-4e26-9dc8-1c779e81d3fa",
+    "timestamp": "2025-12-01T13:40:01.441Z",
+    "content": "hello world",
+    "oldLength": 0,
+    "newLength": 11,
+    "addedWords": [
+      "hello",
+      "world"
+    ],
+    "removedWords": []
+  }
+]

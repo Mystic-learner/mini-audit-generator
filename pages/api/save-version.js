@@ -1,83 +1,62 @@
-// pages/api/save-version.js
 import fs from "fs";
 import path from "path";
-import { randomUUID } from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
-const FILE = path.resolve(process.cwd(), "versions.json");
+const DATA_PATH = path.join(process.cwd(), "data", "versions.json");
 
-async function readVersions() {
-  try {
-    const raw = await fs.promises.readFile(FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch (e) {
-    return [];
-  }
-}
-
-async function writeVersions(arr) {
-  const tmp = FILE + ".tmp";
-  await fs.promises.writeFile(tmp, JSON.stringify(arr, null, 2), "utf8");
-  await fs.promises.rename(tmp, FILE);
-}
-
-/** simple word split - trims and splits on whitespace */
-function tokenize(text = "") {
-  return String(text)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+function nowIso() {
+  return new Date().toISOString();
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "method not allowed" });
   }
 
-  let payload;
   try {
-    payload = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-  } catch (e) {
-    payload = req.body;
-  }
+    const { content } = req.body || {};
+    if (typeof content !== "string") {
+      return res.status(400).json({ error: "content must be a string" });
+    }
 
-  const content = typeof payload?.content === "string" ? payload.content : "";
+    // ensure file exists
+    if (!fs.existsSync(DATA_PATH)) {
+      fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
+      fs.writeFileSync(DATA_PATH, "[]", "utf8");
+    }
 
-  try {
-    const versions = await readVersions();
-    const previous = versions.length > 0 ? versions[0] : { content: "" };
-    const oldContent = typeof previous.content === "string" ? previous.content : "";
+    const raw = fs.readFileSync(DATA_PATH, "utf8");
+    const versions = JSON.parse(raw || "[]");
 
-    const oldLength = oldContent.length;
-    const newLength = content.length;
+    const last = versions[0] || null;
+    const oldContent = (last && last.content) || "";
+    const oldWords = oldContent ? oldContent.split(/\s+/).filter(Boolean) : [];
+    const newWords = content ? content.split(/\s+/).filter(Boolean) : [];
 
-    const oldTokens = tokenize(oldContent);
-    const newTokens = tokenize(content);
+    // quick diff: added / removed words (naive)
+    const added = newWords.filter((w) => !oldWords.includes(w));
+    const removed = oldWords.filter((w) => !newWords.includes(w));
 
-    // naive diff: words present in new but not in old are "added"
-    // and words present in old but not new are "removed"
-    const addedWords = newTokens.filter((w) => !oldTokens.includes(w));
-    const removedWords = oldTokens.filter((w) => !newTokens.includes(w));
-
-    const version = {
-      id: randomUUID(),
-      timestamp: new Date().toISOString(),
+    const ver = {
+      id: uuidv4(),
+      timestamp: nowIso(),
       content,
-      oldLength,
-      newLength,
-      addedWords,
-      removedWords
+      oldLength: oldContent.length,
+      newLength: content.length,
+      addedWords: added,
+      removedWords: removed,
     };
 
-    // prepend newest first
-    const updated = [version, ...versions];
-    await writeVersions(updated);
+    // prepend newest
+    versions.unshift(ver);
 
-    return res.status(201).json(version);
+    // write back
+    fs.writeFileSync(DATA_PATH, JSON.stringify(versions, null, 2), "utf8");
+
+    res.status(201).json(ver);
   } catch (err) {
-    console.error("save-version error:", err);
-    return res.status(500).json({ error: "failed to save" });
+    console.error("POST /api/save-version error:", err);
+    res.status(500).json({ error: "failed to save" });
   }
 }
+

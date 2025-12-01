@@ -1,33 +1,21 @@
-// pages/api/versions.js
 import fs from "fs";
 import path from "path";
 
-const FILE = path.resolve(process.cwd(), "versions.json");
-
-async function readVersions() {
-  try {
-    const raw = await fs.promises.readFile(FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch (e) {
-    // if file does not exist or parse error -> return empty list
-    return [];
-  }
-}
+const DATA_PATH = path.join(process.cwd(), "data", "versions.json");
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
-    const versions = await readVersions();
-    // Return most recent first for convenience
-    return res.status(200).json(versions);
+    if (!fs.existsSync(DATA_PATH)) {
+      // ensure file exists
+      fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
+      fs.writeFileSync(DATA_PATH, "[]", "utf8");
+    }
+    const raw = fs.readFileSync(DATA_PATH, "utf8");
+    const data = JSON.parse(raw || "[]");
+    res.status(200).json(data);
   } catch (err) {
-    console.error("versions read error:", err);
-    return res.status(500).json({ error: "failed to read versions" });
+    console.error("GET /api/versions error:", err);
+    res.status(500).json({ error: "failed to read versions" });
   }
 }
+

@@ -1,65 +1,97 @@
-@"
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
+// mini-audit-backend/server.js
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-const DATA_FILE = path.join(process.cwd(), 'versions.json');
-if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, '[]', 'utf8');
+const DATA_FILE = path.join(__dirname, "versions.json");
 
-function readStore() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { return []; }
+function ensureDataFile() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      fs.writeFileSync(DATA_FILE, "[]", "utf8");
+      console.log("Created versions.json");
+    }
+  } catch (err) {
+    console.error("ensureDataFile error:", err);
+    throw err;
+  }
 }
-function writeStore(arr) { fs.writeFileSync(DATA_FILE, JSON.stringify(arr, null, 2), 'utf8'); }
 
-app.get('/', (req, res) => res.send('Mini Audit Backend running'));
-app.get('/healthz', (req, res) => res.json({ ok: true }));
-app.get('/versions', (req, res) => {
-  const store = readStore();
-  // return newest first
-  res.json(store.slice().reverse());
+function readData() {
+  try {
+    ensureDataFile();
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    return JSON.parse(raw || "[]");
+  } catch (err) {
+    console.error("readData error:", err);
+    throw err;
+  }
+}
+
+function writeData(arr) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(arr, null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error("writeData error:", err);
+    throw err;
+  }
+}
+
+app.post("/api/save-version", (req, res) => {
+  console.log("Received save-version request");
+  try {
+    if (!req.body) {
+      console.warn("No body on request");
+    }
+    const { content = "" } = req.body || {};
+    console.log("content length:", (content && content.length) || 0);
+
+    // load existing
+    const versions = readData();
+    const last = versions[0] || null;
+    const oldLength = last ? last.newLength : 0;
+    const newLength = content.length;
+
+    const v = {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      content,
+      oldLength,
+      newLength,
+      addedWords: [],
+      removedWords: []
+    };
+
+    versions.unshift(v);
+
+    // save
+    writeData(versions);
+    console.log("Saved new version id=", v.id);
+    return res.json(v);
+  } catch (err) {
+    console.error("save-version handler error:", err);
+    // return error details for debugging (remove in production)
+    return res.status(500).json({ error: "failed to save", detail: String(err) });
+  }
 });
 
-app.post('/save-version', (req, res) => {
-  const { content } = req.body || {};
-  if (typeof content !== 'string') return res.status(400).json({ error: 'content (string) required' });
-
-  const store = readStore();
-  const previous = store.length ? store[store.length - 1].content : '';
-  const oldLength = previous.length;
-  const newLength = content.length;
-
-  // simple word frequency diff
-  const tokenize = (t) => (String(t).match(/\w+/g) || []).map(w => w.toLowerCase());
-  const freq = (arr) => arr.reduce((m, w) => { m[w] = (m[w] || 0) + 1; return m; }, {});
-  const oldMap = freq(tokenize(previous));
-  const newMap = freq(tokenize(content));
-
-  const added = [];
-  const removed = [];
-  for (const w in newMap) if (newMap[w] > (oldMap[w] || 0)) added.push(w);
-  for (const w in oldMap) if (oldMap[w] > (newMap[w] || 0)) removed.push(w);
-
-  const entry = {
-    id: uuidv4(),
-    timestamp: new Date().toISOString().slice(0,16).replace('T',' '),
-    addedWords: added,
-    removedWords: removed,
-    oldLength,
-    newLength,
-    content
-  };
-
-  store.push(entry);
-  writeStore(store);
-  res.status(201).json(entry);
+app.get("/api/versions", (req, res) => {
+  console.log("GET /api/versions");
+  try {
+    const versions = readData();
+    res.json(versions);
+  } catch (err) {
+    console.error("GET /api/versions error:", err);
+    res.status(500).json({ error: "failed to read versions", detail: String(err) });
+  }
 });
 
-const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => console.log(`Backend listening on http://localhost:${PORT}`));
-"@ | Out-File -FilePath server.js -Encoding utf8
+const port = process.env.PORT || 3001;
+app.listen(port, () => {
+  console.log(`mini-audit-backend listening on http://localhost:${port}`);
+});
