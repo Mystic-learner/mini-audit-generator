@@ -1,26 +1,31 @@
 // pages/index.js
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const [content, setContent] = useState("");
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [lastLoadedId, setLastLoadedId] = useState(null);
 
+  // ---------------------------
+  // FETCH VERSIONS
+  // ---------------------------
   async function fetchVersions() {
-    setError(null);
+    setErrorMsg(null);
+
     try {
-      const res = await fetch("/api/versions");
+      const res = await fetch("/api/versions", { method: "GET" });
+
       if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`Failed to fetch versions: ${res.status} ${body}`);
+        throw new Error(`Failed to fetch: ${res.status}`);
       }
+
       const data = await res.json();
       setVersions(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("fetchVersions error:", e);
-      setError(e.message || "Failed to fetch versions");
-      setVersions([]);
+    } catch (err) {
+      console.error("fetchVersions error", err);
+      setErrorMsg(err.message);
     }
   }
 
@@ -28,41 +33,50 @@ export default function Home() {
     fetchVersions();
   }, []);
 
+  // ---------------------------
+  // SAVE VERSION
+  // ---------------------------
   async function saveVersion() {
     setLoading(true);
-    setError(null);
+    setErrorMsg(null);
+
     try {
       const res = await fetch("/api/save-version", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content })
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
       });
 
+      const body = await res.json();
+
       if (!res.ok) {
-        // read response body to show server message
-        const text = await res.text();
-        throw new Error(`Save failed: ${res.status} ${text}`);
+        throw new Error(body?.error || `Status ${res.status}`);
       }
 
-      const newVer = await res.json();
-      // guard shape: ensure newVer has id/timestamp
-      if (newVer && newVer.id) {
-        setVersions((v) => [newVer, ...v]);
-      } else {
-        // refresh from server in case server returns updated list
-        fetchVersions();
-      }
-      setContent("");
-    } catch (e) {
-      console.error("saveVersion error:", e);
-      setError(e.message || "Failed to save");
+      // prepend newest version
+      setVersions((prev) => [body, ...prev]);
+    } catch (err) {
+      console.error("saveVersion failed", err);
+      setErrorMsg(`Save failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
   }
 
+  // ---------------------------
+  // UI
+  // ---------------------------
   return (
-    <main style={{ padding: 28, maxWidth: 1000, margin: "0 auto", color: "#fff" }}>
+    <main
+      style={{
+        padding: 28,
+        maxWidth: 1000,
+        margin: "0 auto",
+        color: "#fff",
+      }}
+    >
       <h1>Mini Audit Trail Generator</h1>
 
       <label>Content Editor</label>
@@ -77,69 +91,105 @@ export default function Home() {
           borderRadius: 8,
           padding: 12,
           color: "#fff",
-          fontSize: 15
+          fontSize: 15,
+          boxSizing: "border-box",
         }}
       />
 
       <div style={{ marginTop: 14, display: "flex", gap: 12 }}>
-        <button onClick={saveVersion} disabled={loading || !content.trim()}>
+        <button
+          onClick={saveVersion}
+          disabled={loading}
+          style={{ padding: "12px 18px" }}
+        >
           {loading ? "Saving..." : "Save Version"}
         </button>
-        <button onClick={() => setContent("")}>Clear</button>
-        <button onClick={fetchVersions}>Refresh Versions</button>
+
+        <button
+          onClick={() => setContent("")}
+          style={{ padding: "12px 18px" }}
+        >
+          Clear
+        </button>
+
+        <button
+          onClick={fetchVersions}
+          style={{ padding: "12px 18px" }}
+        >
+          Refresh Versions
+        </button>
       </div>
 
-      <h2 style={{ marginTop: 36 }}>Version History</h2>
+      <h2 style={{ marginTop: 40 }}>Version History</h2>
 
-      {error && (
-        <div style={{
-          background: "#4d2020",
-          color: "#fff",
-          padding: 14,
-          borderRadius: 8,
-          marginBottom: 16
-        }}>
-          <strong>Error:</strong> {error}
+      {errorMsg && (
+        <div
+          style={{
+            background: "#4f1b1b",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 18,
+          }}
+        >
+          <strong>Error:</strong> {errorMsg}
         </div>
       )}
 
-      {versions.length === 0 && !error && <p>No versions yet.</p>}
+      {versions.length === 0 && <p>No versions yet.</p>}
 
       <ul style={{ listStyle: "none", padding: 0 }}>
-        {versions.map((v) => {
-          const idShort = v && v.id ? String(v.id).slice(0, 8) : "—";
-          const ts = v && v.timestamp ? v.timestamp : "—";
-          const oldLength = v && typeof v.oldLength === "number" ? v.oldLength : "—";
-          const newLength = v && typeof v.newLength === "number" ? v.newLength : "—";
-          const added = Array.isArray(v?.addedWords) ? v.addedWords : [];
-          const removed = Array.isArray(v?.removedWords) ? v.removedWords : [];
-
-          return (
-            <li key={v.id || Math.random()} style={{
+        {versions.map((v) => (
+          <li
+            key={v.id}
+            style={{
               background: "#141414",
               borderRadius: 10,
               padding: 18,
-              marginBottom: 14
-            }}>
-              <strong>{ts}</strong>{" "}
-              <span style={{ color: "#777" }}>({idShort})</span>
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <strong>{v.timestamp ?? "—"}</strong>
+              <span style={{ color: "#777" }}>
+                ({(v.id ?? "—").toString().slice(0, 8)})
+              </span>
+            </div>
 
-              <div style={{ marginTop: 10 }}>
-                <div>Length: {oldLength} → {newLength}</div>
-                <div><strong>Added:</strong> {added.length ? added.join(", ") : "—"}</div>
-                <div><strong>Removed:</strong> {removed.length ? removed.join(", ") : "—"}</div>
+            <div style={{ marginTop: 10 }}>
+              <div>
+                Length: {v.oldLength ?? "—"} → {v.newLength ?? "—"}
               </div>
+              <div>
+                <strong>Added:</strong>{" "}
+                {(Array.isArray(v.addedWords)
+                  ? v.addedWords.join(", ")
+                  : "—") || "—"}
+              </div>
+              <div>
+                <strong>Removed:</strong>{" "}
+                {(Array.isArray(v.removedWords)
+                  ? v.removedWords.join(", ")
+                  : "—") || "—"}
+              </div>
+            </div>
 
-              <button
-                style={{ marginTop: 10 }}
-                onClick={() => setContent(v.content || "")}
-              >
-                Load
-              </button>
-            </li>
-          );
-        })}
+            <button
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                setContent(v.content ?? "");
+                setLastLoadedId(v.id ?? null);
+              }}
+            >
+              Load
+            </button>
+
+            {lastLoadedId === v.id && (
+              <span style={{ marginLeft: 10, color: "#3b8" }}>Loaded</span>
+            )}
+          </li>
+        ))}
       </ul>
     </main>
   );
 }
+

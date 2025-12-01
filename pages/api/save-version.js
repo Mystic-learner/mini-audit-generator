@@ -8,9 +8,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-export default async function handler(req, res) {
+export default function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "method not allowed" });
+    res.setHeader("Allow", ["POST"]);
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
@@ -19,7 +20,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "content must be a string" });
     }
 
-    // ensure file exists
     if (!fs.existsSync(DATA_PATH)) {
       fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
       fs.writeFileSync(DATA_PATH, "[]", "utf8");
@@ -33,7 +33,6 @@ export default async function handler(req, res) {
     const oldWords = oldContent ? oldContent.split(/\s+/).filter(Boolean) : [];
     const newWords = content ? content.split(/\s+/).filter(Boolean) : [];
 
-    // quick diff: added / removed words (naive)
     const added = newWords.filter((w) => !oldWords.includes(w));
     const removed = oldWords.filter((w) => !newWords.includes(w));
 
@@ -47,16 +46,12 @@ export default async function handler(req, res) {
       removedWords: removed,
     };
 
-    // prepend newest
     versions.unshift(ver);
-
-    // write back
     fs.writeFileSync(DATA_PATH, JSON.stringify(versions, null, 2), "utf8");
 
-    res.status(201).json(ver);
+    return res.status(201).json(ver);
   } catch (err) {
     console.error("POST /api/save-version error:", err);
-    res.status(500).json({ error: "failed to save" });
+    return res.status(500).json({ error: "failed to save" });
   }
 }
-
