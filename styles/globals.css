@@ -1,0 +1,147 @@
+/* Clean, professional, pleasant UI (no neon, no flashy colors) */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0d0d0d;
+  --panel: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: #a1a1a1;
+  --text: #f5f5f5;
+  --primary: #3d7cff;     /* calm blue */
+  --primary-hover: #5a8cff;
+  --radius: 10px;
+}
+
+/* Page background */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Container */
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+
+/* Header */
+h1 {
+  font-size: 32px;
+  margin: 0 0 20px 0;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+h2 {
+  margin-top: 40px;
+  margin-bottom: 14px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* Textarea – pleasant, soft, modern */
+textarea {
+  width: 100%;
+  min-height: 280px;
+  padding: 14px;
+  font-size: 15px;
+  border-radius: var(--radius);
+  background: #2a2a2a;
+  color: var(--text);
+  border: 1px solid var(--border);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea:focus {
+  border-color: #4a6bff;
+  box-shadow: 0 0 0 3px rgba(74, 107, 255, 0.2);
+}
+
+/* Buttons */
+button {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+/* Primary (Save) */
+button.primary {
+  background: var(--primary);
+  color: white;
+}
+
+button.primary:hover {
+  background: var(--primary-hover);
+}
+
+/* Secondary (Clear, Load) */
+button.secondary {
+  background: #e5e5e5;
+  color: #222;
+}
+
+button.secondary:hover {
+  background: #ffffff;
+}
+
+/* History list */
+.version-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.version-item {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.version-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+}
+
+/* Metadata */
+.version-meta strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.version-id {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+/* Details */
+.version-details {
+  margin-top: 10px;
+  font-size: 15px;
+  color: #dcdcdc;
+}
+
+/* Subtle labels */
+.version-details strong {
+  color: #ffffff;
+}
+
+/* Actions */
+.version-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
