@@ -1,7 +1,9 @@
+// pages/api/versions.js
 import fs from "fs";
 import path from "path";
+import os from "os";
 
-const DATA_PATH = path.join(process.cwd(), "data", "versions.json");
+const DATA_PATH = path.join(os.tmpdir(), "mini-audit-trail-versions.json");
 
 export default function handler(req, res) {
   if (req.method !== "GET") {
@@ -11,7 +13,6 @@ export default function handler(req, res) {
 
   try {
     if (!fs.existsSync(DATA_PATH)) {
-      fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
       fs.writeFileSync(DATA_PATH, "[]", "utf8");
     }
     const raw = fs.readFileSync(DATA_PATH, "utf8");
@@ -22,3 +23,4 @@ export default function handler(req, res) {
     return res.status(500).json({ error: "failed to read versions" });
   }
 }
+
